@@ -11,9 +11,9 @@ logging.basicConfig(
 
 class Config(object):
     
-    BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
-    API_ID = int(os.environ.get("API_ID", ))
-    API_HASH = os.environ.get("API_HASH", "")
+    BOT_TOKEN = os.environ.get("BOT_TOKEN", "8420210960:AAH7t-Mi-c1aXj9kwykX28sqYSUIvU4u3fc")
+    API_ID = int(os.environ.get("API_ID", "20077744"))
+    API_HASH = os.environ.get("API_HASH", "64f8e1cce4c865e981a8000f4ae33820")
     
     DOWNLOAD_LOCATION = "./DOWNLOADS"
     MAX_FILE_SIZE = 2194304000
@@ -38,9 +38,9 @@ class Config(object):
         if x.isdigit()
     )
 
-    DATABASE_URL = os.environ.get("DATABASE_URL", "")
+    DATABASE_URL = os.environ.get("DATABASE_URL", "mongodb+srv://xyzcinema4:xyzcinema4@cluster0.zg2ewlh.mongodb.net/?appName=Cluster0")
 
-    LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", ""))
+    LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", "-1002337612955"))
     LOGGER = logging
     OWNER_ID = int(os.environ.get("OWNER_ID", "5123039684"))
     SESSION_NAME = "Url-Uploader-Bot"
