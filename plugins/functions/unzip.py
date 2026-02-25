@@ -274,7 +274,7 @@ async def upload_extracted_files(bot, update, extracted_files, start_time, tmp_d
     # Final status message
     if uploaded_count > 0:
         await update.message.edit_caption(
-            caption=f"✅ Auto Unzip Complete!\n\n📤 Uploaded: {uploaded_count} files\n❌ Failed: {failed_count} files",
+            caption=f"✅ Auto Unzip Complete!\n\n📤 Unzip Success: {uploaded_count} files\n❌ Unzip Failed: {failed_count} files",
             reply_markup=None
         )
         return True
@@ -313,7 +313,7 @@ async def handle_auto_unzip(bot, update, download_directory, tmp_directory_for_e
 
         # Update message
         await update.message.edit_caption(
-            caption="📦 ZIP file detected!\n🔄 Extracting files...",
+            caption="📦 ZIP FILE DETECTED!\n🔄 Extracting Files...",
             reply_markup=None
         )
 
@@ -335,7 +335,7 @@ async def handle_auto_unzip(bot, update, download_directory, tmp_directory_for_e
 
         # Upload extracted files
         await update.message.edit_caption(
-            caption=f"📦 Extraction Complete!\n📁 Found {len(extracted_files)} files\n📤 Starting upload in sequence...",
+            caption=f"📦 Extraction Complete!\n📁 Found {len(extracted_files)} Files\n📤 Starting Upload In Sequence...",
             reply_markup=None
         )
 
