@@ -17,7 +17,7 @@ from plugins.functions.display_progress import progress_for_pyrogram, humanbytes
 from plugins.database.database import db
 from PIL import Image
 from plugins.functions.ran_text import random_char
-from plugins.functions.unzip import handle_auto_unzip, is_zip_file
+from plugins.functions.unzip import handle_auto_unzip, is_zip_file, fix_unknown_video_extension
 cookies_file = 'cookies.txt'
 # Set up logging
 logging.basicConfig(level=logging.DEBUG,
@@ -207,8 +207,31 @@ async def youtube_dl_call_back(bot, update):
         if os.path.isfile(download_directory):
             file_size = os.stat(download_directory).st_size
         else:
-            download_directory = os.path.splitext(download_directory)[0] + "." + ".mkv"
-            if os.path.isfile(download_directory):
+            # Check for _0.unknown_video file
+            unknown_video_path = os.path.splitext(download_directory)[0] + "_0.unknown_video"
+            mkv_path = os.path.splitext(download_directory)[0] + ".mkv"
+
+            if os.path.isfile(unknown_video_path):
+                # Rename to .mkv
+                try:
+                    os.rename(unknown_video_path, mkv_path)
+                    download_directory = mkv_path
+                    custom_file_name = os.path.basename(mkv_path)
+                    file_size = os.stat(download_directory).st_size
+                except Exception as e:
+                    logger.error(f"Error renaming file: {e}")
+                    download_directory = os.path.splitext(download_directory)[0] + ".mkv"
+                    if os.path.isfile(download_directory):
+                        file_size = os.stat(download_directory).st_size
+                    else:
+                        logger.error(f"Downloaded file not found: {download_directory}")
+                        await update.message.edit_caption(
+                            caption=Translation.DOWNLOAD_FAILED
+                        )
+                        return False
+            elif os.path.isfile(mkv_path):
+                download_directory = mkv_path
+                custom_file_name = os.path.basename(mkv_path)
                 file_size = os.stat(download_directory).st_size
             else:
                 logger.error(f"Downloaded file not found: {download_directory}")
@@ -216,6 +239,10 @@ async def youtube_dl_call_back(bot, update):
                     caption=Translation.DOWNLOAD_FAILED
                 )
                 return False
+
+        # Fix _0.unknown_video extension if still present
+        download_directory = fix_unknown_video_extension(download_directory)
+        custom_file_name = os.path.basename(download_directory)
 
         if file_size > Config.TG_MAX_FILE_SIZE:
             await update.message.edit_caption(
