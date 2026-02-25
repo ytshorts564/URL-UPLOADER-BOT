@@ -8,7 +8,14 @@ import re
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-import requests, urllib.parse, filetype, os, time, shutil, tldextract, asyncio, json, math
+import requests
+import urllib.parse
+import filetype
+import shutil
+import tldextract
+import asyncio
+import json
+import math
 from urllib.parse import urlparse, unquote
 from PIL import Image
 from plugins.config import Config
@@ -34,7 +41,7 @@ from pyrogram.types import Thumbnail
 cookies_file = 'cookies.txt'
 
 
-async def get_filename_from_url(url):
+def get_filename_from_url_sync(url):
     """
     Get the real filename from URL by checking Content-Disposition header.
     Falls back to URL basename if no Content-Disposition header is found.
@@ -61,8 +68,8 @@ async def get_filename_from_url(url):
                     logger.info(f"Found filename from Content-Disposition: {filename}")
                     return filename
 
-        # Fallback: try to get filename from URL
-        parsed_url = urlparse(url)
+        # Fallback: try to get filename from final URL
+        parsed_url = urlparse(response.url)
         url_filename = os.path.basename(unquote(parsed_url.path))
         if url_filename and '.' in url_filename:
             logger.info(f"Using filename from URL: {url_filename}")
@@ -72,8 +79,11 @@ async def get_filename_from_url(url):
         logger.warning(f"Error getting filename from headers: {e}")
 
     # Final fallback: use URL basename
-    parsed_url = urlparse(url)
-    return os.path.basename(unquote(parsed_url.path)) or "unknown_file"
+    try:
+        parsed_url = urlparse(url)
+        return os.path.basename(unquote(parsed_url.path)) or "unknown_file"
+    except:
+        return "unknown_file"
 
 
 @Client.on_message(filters.private & filters.regex(pattern=".*http.*"))
@@ -331,7 +341,7 @@ async def echo(bot, update):
     else:
         #fallback for nonnumeric port a.k.a seedbox.io - direct download links
         # Get the real filename from the URL
-        detected_filename = await get_filename_from_url(url)
+        detected_filename = get_filename_from_url_sync(url)
 
         inline_keyboard = []
         cb_string_file = "{}={}={}".format(
