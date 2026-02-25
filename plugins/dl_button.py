@@ -25,6 +25,7 @@ from hachoir.parser import createParser
 from PIL import Image
 from pyrogram import enums
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from plugins.functions.unzip import handle_auto_unzip, is_zip_file
 
 # Global dictionary to track active downloads for cancellation
 active_downloads = {}
@@ -186,6 +187,19 @@ async def ddl_call_back(bot, update):
 
     if download_success and os.path.exists(download_directory):
         end_one = datetime.now()
+
+        # Check for auto unzip
+        auto_unzip_done = await handle_auto_unzip(
+            bot, 
+            update, 
+            download_directory, 
+            tmp_directory_for_each_user, 
+            time.time()
+        )
+
+        if auto_unzip_done:
+            # Auto unzip was performed and files were uploaded
+            return True
 
         # Add cancel button for upload
         upload_cancel_id = f"{update.from_user.id}_{int(time.time())}_upload"

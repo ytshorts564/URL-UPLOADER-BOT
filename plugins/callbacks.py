@@ -137,6 +137,16 @@ async def button(bot, update):
         else:
             await db.set_upload_as_doc(update.from_user.id, True)
         await OpenSettings(update.message)
+
+    elif cb_data == "triggerAutoUnzip":
+        await update.answer()
+        auto_unzip = await db.get_auto_unzip(update.from_user.id)
+        if auto_unzip:
+            await db.set_auto_unzip(update.from_user.id, False)
+        else:
+            await db.set_auto_unzip(update.from_user.id, True)
+        await OpenSettings(update.message)
+
     elif "close" in cb_data:
         await update.message.delete(True)
 

@@ -17,6 +17,7 @@ from plugins.functions.display_progress import progress_for_pyrogram, humanbytes
 from plugins.database.database import db
 from PIL import Image
 from plugins.functions.ran_text import random_char
+from plugins.functions.unzip import handle_auto_unzip, is_zip_file
 cookies_file = 'cookies.txt'
 # Set up logging
 logging.basicConfig(level=logging.DEBUG,
@@ -221,6 +222,19 @@ async def youtube_dl_call_back(bot, update):
                 caption=Translation.RCHD_TG_API_LIMIT.format(time_taken_for_download, humanbytes(file_size))
             )
         else:
+            # Check for auto unzip first
+            auto_unzip_done = await handle_auto_unzip(
+                bot, 
+                update, 
+                download_directory, 
+                tmp_directory_for_each_user, 
+                time.time()
+            )
+
+            if auto_unzip_done:
+                # Auto unzip was performed and files were uploaded
+                return True
+
             # Add cancel button for upload
             upload_cancel_id = f"{update.from_user.id}_{int(time.time())}_ytdl_upload"
             upload_cancel_markup = InlineKeyboardMarkup([
