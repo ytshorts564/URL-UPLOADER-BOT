@@ -134,6 +134,7 @@ async def ddl_call_back(bot, update):
                  thumb_image_path = await Gthumb02(bot, update, duration, download_directory)
                  await update.message.reply_video(
                     video=download_directory,
+                    file_name=custom_file_name,
                     caption=description,
                     duration=duration,
                     width=width,
@@ -153,6 +154,7 @@ async def ddl_call_back(bot, update):
                 thumbnail = await Gthumb01(bot, update)
                 await update.message.reply_audio(
                     audio=download_directory,
+                    file_name=custom_file_name,
                     caption=description,
                     parse_mode=enums.ParseMode.HTML,
                     duration=duration,
