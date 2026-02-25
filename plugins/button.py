@@ -191,6 +191,7 @@ async def youtube_dl_call_back(bot, update):
                 thumbnail = await Gthumb01(bot, update)
                 await update.message.reply_document(
                     document=download_directory,
+                    file_name=custom_file_name,
                     thumb=thumbnail,
                     caption=description,
                     progress=progress_for_pyrogram,
@@ -205,6 +206,7 @@ async def youtube_dl_call_back(bot, update):
                 thumb_image_path = await Gthumb02(bot, update, duration, download_directory)
                 await update.message.reply_video(
                     video=download_directory,
+                    file_name=custom_file_name,
                     caption=description,
                     duration=duration,
                     width=width,
@@ -224,6 +226,7 @@ async def youtube_dl_call_back(bot, update):
                 thumbnail = await Gthumb01(bot, update)
                 await update.message.reply_audio(
                     audio=download_directory,
+                    file_name=custom_file_name,
                     caption=description,
                     duration=duration,
                     thumb=thumbnail,
