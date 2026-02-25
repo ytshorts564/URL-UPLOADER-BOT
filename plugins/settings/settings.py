@@ -17,7 +17,7 @@ async def OpenSettings(m: "types.Message"):
     auto_caption = user_data.get("auto_caption", False)
     thumbnail = user_data.get("thumbnail", None)
     buttons_markup = [
-        [types.InlineKeyboardButton(f" {'📹 VIDEO' if upload_as_doc else '📁 DOCUMENT'}",
+        [types.InlineKeyboardButton(f" {'📹 UPLOAD AS VIDEO' if upload_as_doc else '📁 UPLOAD AS DOCUMENT'}",
                                     callback_data="triggerUploadMode")],
         [types.InlineKeyboardButton(f"{'📝 AUTO CAPTION: ON ✅' if auto_caption else '📝 AUTO CAPTION: OFF ❌'}",
                                     callback_data="triggerAutoCaption")],
