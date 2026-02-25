@@ -118,6 +118,7 @@ async def ddl_call_back(bot, update):
                 thumbnail = await Gthumb01(bot, update)
                 await update.message.reply_document(
                     document=download_directory,
+                    file_name=custom_file_name,
                     thumb=thumbnail,
                     caption=description,
                     parse_mode=enums.ParseMode.HTML,
