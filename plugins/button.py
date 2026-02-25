@@ -98,6 +98,9 @@ async def youtube_dl_call_back(bot, update):
     description = Translation.CUSTOM_CAPTION_UL_FILE
     if "fulltitle" in response_json:
         description = response_json["fulltitle"][0:1021]
+    # Fallback to empty string if None (caption will be handled during upload)
+    if not description:
+        description = ""
 
     tmp_directory_for_each_user = os.path.join(Config.DOWNLOAD_LOCATION, f"{update.from_user.id}{random1}")
     os.makedirs(tmp_directory_for_each_user, exist_ok=True)
@@ -280,6 +283,9 @@ async def youtube_dl_call_back(bot, update):
             start_time = time.time()
             upload_cancelled = False
 
+            # Ensure caption is set (fallback to filename if empty)
+            upload_caption = description if description else custom_file_name
+
             try:
                 if not await db.get_upload_as_doc(update.from_user.id):
                     thumbnail = await Gthumb01(bot, update)
@@ -287,7 +293,7 @@ async def youtube_dl_call_back(bot, update):
                         document=download_directory,
                         file_name=custom_file_name,
                         thumb=thumbnail,
-                        caption=description,
+                        caption=upload_caption,
                         progress=progress_for_pyrogram,
                         progress_args=(
                             Translation.UPLOAD_START,
@@ -301,7 +307,7 @@ async def youtube_dl_call_back(bot, update):
                     await update.message.reply_video(
                         video=download_directory,
                         file_name=custom_file_name,
-                        caption=description,
+                        caption=upload_caption,
                         duration=duration,
                         width=width,
                         height=height,
