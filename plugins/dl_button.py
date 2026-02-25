@@ -261,8 +261,12 @@ async def ddl_call_back(bot, update):
             start_time = time.time()
             upload_cancelled = False
 
-            # Ensure caption is set (fallback to filename if empty)
-            upload_caption = description if description else custom_file_name
+            # Determine caption: auto_caption uses filename with underscores removed
+            auto_caption_enabled = await db.get_auto_caption(update.from_user.id)
+            if auto_caption_enabled:
+                upload_caption = custom_file_name.replace("_", " ")
+            else:
+                upload_caption = description if description else custom_file_name
 
             try:
                 if (await db.get_upload_as_doc(update.from_user.id)) is False:
@@ -307,7 +311,7 @@ async def ddl_call_back(bot, update):
                     await update.message.reply_audio(
                         audio=download_directory,
                         file_name=custom_file_name,
-                        caption=description,
+                        caption=upload_caption,
                         parse_mode=enums.ParseMode.HTML,
                         duration=duration,
                         thumb=thumbnail,

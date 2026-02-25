@@ -147,6 +147,15 @@ async def button(bot, update):
             await db.set_auto_unzip(update.from_user.id, True)
         await OpenSettings(update.message)
 
+    elif cb_data == "triggerAutoCaption":
+        await update.answer()
+        auto_caption = await db.get_auto_caption(update.from_user.id)
+        if auto_caption:
+            await db.set_auto_caption(update.from_user.id, False)
+        else:
+            await db.set_auto_caption(update.from_user.id, True)
+        await OpenSettings(update.message)
+
     elif "close" in cb_data:
         await update.message.delete(True)
 
