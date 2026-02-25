@@ -111,6 +111,9 @@ async def ddl_call_back(bot, update):
             custom_file_name = url_parts[1].strip()
 
     description = Translation.CUSTOM_CAPTION_UL_FILE
+    # Fallback to empty string if None (caption will be handled during upload)
+    if not description:
+        description = ""
     start = datetime.now()
 
     # Generate unique cancel ID
@@ -258,6 +261,9 @@ async def ddl_call_back(bot, update):
             start_time = time.time()
             upload_cancelled = False
 
+            # Ensure caption is set (fallback to filename if empty)
+            upload_caption = description if description else custom_file_name
+
             try:
                 if (await db.get_upload_as_doc(update.from_user.id)) is False:
                     thumbnail = await Gthumb01(bot, update)
@@ -265,7 +271,7 @@ async def ddl_call_back(bot, update):
                         document=download_directory,
                         file_name=custom_file_name,
                         thumb=thumbnail,
-                        caption=description,
+                        caption=upload_caption,
                         parse_mode=enums.ParseMode.HTML,
                         progress=progress_for_pyrogram,
                         progress_args=(
@@ -280,7 +286,7 @@ async def ddl_call_back(bot, update):
                     await update.message.reply_video(
                         video=download_directory,
                         file_name=custom_file_name,
-                        caption=description,
+                        caption=upload_caption,
                         duration=duration,
                         width=width,
                         height=height,
