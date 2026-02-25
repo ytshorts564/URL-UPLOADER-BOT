@@ -283,12 +283,16 @@ async def youtube_dl_call_back(bot, update):
             start_time = time.time()
             upload_cancelled = False
 
-            # Determine caption: auto_caption uses filename with underscores removed
-            auto_caption_enabled = await db.get_auto_caption(update.from_user.id)
-            if auto_caption_enabled:
-                upload_caption = custom_file_name.replace("_", " ")
+            # Determine caption based on caption_style setting
+            caption_style = await db.get_caption_style(update.from_user.id)
+            base_caption = description if description else custom_file_name.replace("_", " ")
+
+            if caption_style == "bold":
+                upload_caption = f"<b>{base_caption}</b>"
+            elif caption_style == "mono":
+                upload_caption = f"<code>{base_caption}</code>"
             else:
-                upload_caption = description if description else custom_file_name
+                upload_caption = base_caption
 
             try:
                 if not await db.get_upload_as_doc(update.from_user.id):
