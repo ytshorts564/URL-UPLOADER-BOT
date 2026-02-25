@@ -7,46 +7,6 @@ This is a **public project** — if you fork it and push your bot’s credential
 
 > Use **Heroku Config Vars**, `.env`, or private forks to keep your credentials safe.  
 
-### BUY ME A COFFEE ☕️
-<a href="https://www.buymeacoffee.com/lisakorean" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/arial-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
-
-
-# Donation
-<b><details><summary>Click To Open Donation detelis</summary>
-
-## Support This Project
-
-Maintaining and improving this project takes time and resources. If you find this repository helpful or use it in your own projects, consider supporting its development. Your contributions—no matter how small—help keep the project alive and evolving.
-
-### Payment Methods
-
-- **UPI / GPay / Paytm / PhonePe**
-- **PayPal** (International)
-- **Credit/Debit Cards** (via PayPal)
-- **Cryptocurrency**: Bitcoin, Tron (TRC20)
-- **Payeer**
-
-### Payment Details
-
-- **UPI ID**: `jobinjustin2002-1@okaxis`  
-- **Bitcoin**: `1DPtf1xkq7aBriCBwDHNydSfzQT2PccFmj`  
-- **Tron (TRC20)**: `THPYzzchV2fssaw5RE4TxL8NxJpfctw46J`  
-- **Payeer**: `P1113797003`  
-- **PayPal**: [Click to Pay](https://www.paypal.me/lisajobin)
-
-### Why Donate?
-
-- To support ongoing development and new features
-- To help cover infrastructure and hosting costs
-- To keep the project open-source and free for everyone
-
-### Contact
-
-If you have any questions or would like to sponsor this project in another way, feel free to reach out:  
-**[@JOBIN_JUSTIN](https://t.me/JOBIN_JUSTIN)** on Telegram.
-</b>
-</details>
-
 ## How To Deploy Heroku
 
 <b><details><summary>Tap On Me For Deploy</summary>
@@ -156,18 +116,3 @@ Check How To Make MONGODB URL or [YouTube](https://youtu.be/VudXkbirhM8?feature=
 </details>
 
 #
-
-### My Community Details
-
-- YouTube Channel : [Telegram Bots 🤖](https://youtube.com/@NTBOT?feature=shared)
-- Telegram Channel : [NT Bots ❤️‍🩹](https://t.me/NT_BOT_CHANNEL)
-- Telegram Group : [NT Bots Support 🎗️](https://t.me/NT_BOTS_SUPPORT)
-- URL Uploader Bot : [Uploader 𝕏 Bot](https://t.me/UploaderXNTBot)
-
-
-### Credits and Thanks to ❤️
-
-* [Lisa (Me)](https://github.com/LISA-KOREA)
-* [Clinton Abraham](https://github.com/Clinton-Abraham)
-* [Tech VJ](https://github.com/VJBots)
-
