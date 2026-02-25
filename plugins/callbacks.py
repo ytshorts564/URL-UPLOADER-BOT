@@ -1,8 +1,8 @@
 import os
 from plugins.functions.display_progress import progress_for_pyrogram, humanbytes
 from plugins.config import Config
-from plugins.dl_button import ddl_call_back
-from plugins.button import youtube_dl_call_back
+from plugins.dl_button import ddl_call_back, handle_cancel_callback
+from plugins.button import youtube_dl_call_back, handle_ytdl_cancel, active_ytdlp_processes
 from plugins.settings.settings import OpenSettings
 from plugins.script import Translation
 from pyrogram import Client, types
@@ -17,22 +17,36 @@ logger = logging.getLogger(__name__)
 
 @Client.on_callback_query()
 async def button(bot, update):
-    if update.data == "home":
+    cb_data = update.data
+
+    # Handle cancel callbacks first
+    if cb_data.startswith("cancel_dl_"):
+        await handle_cancel_callback(bot, update)
+        return
+    elif cb_data.startswith("cancel_ul_"):
+        await handle_cancel_callback(bot, update)
+        return
+    elif cb_data.startswith("cancel_ytdl_"):
+        cancel_id = cb_data.replace("cancel_ytdl_", "")
+        await handle_ytdl_cancel(bot, update, cancel_id)
+        return
+
+    if cb_data == "home":
         await update.message.edit(
             text=Translation.START_TEXT.format(update.from_user.mention),
             reply_markup=Translation.START_BUTTONS,
         )
-    elif update.data == "help":
+    elif cb_data == "help":
         await update.message.edit(
             text=Translation.HELP_TEXT,
             reply_markup=Translation.HELP_BUTTONS,
         )
-    elif update.data == "about":
+    elif cb_data == "about":
         await update.message.edit(
             text=Translation.ABOUT_TEXT,
             reply_markup=Translation.ABOUT_BUTTONS,
         )
-    elif "refreshForceSub" in update.data:
+    elif "refreshForceSub" in cb_data:
         if Config.UPDATES_CHANNEL:
             if str(Config.UPDATES_CHANNEL).startswith("-100"):
                 channel_chat_id = int(Config.UPDATES_CHANNEL)
@@ -72,10 +86,10 @@ async def button(bot, update):
             text=Translation.START_TEXT.format(update.from_user.mention),
             reply_markup=Translation.START_BUTTONS,
         )
-    elif update.data == "OpenSettings":
+    elif cb_data == "OpenSettings":
         await update.answer()
         await OpenSettings(update.message)
-    elif update.data == "showThumbnail":
+    elif cb_data == "showThumbnail":
         thumbnail = await db.get_thumbnail(update.from_user.id)
         if not thumbnail:
             await update.answer("You didn't set any custom thumbnail!", show_alert=True)
@@ -86,18 +100,18 @@ async def button(bot, update):
                                    types.InlineKeyboardButton("Delete Thumbnail",
                                                               callback_data="deleteThumbnail")
                                ]]))
-    elif update.data == "deleteThumbnail":
+    elif cb_data == "deleteThumbnail":
         await db.set_thumbnail(update.from_user.id, None)
         await update.answer("Okay, I deleted your custom thumbnail. Now I will apply default thumbnail.", show_alert=True)
         await update.message.delete(True)
-    elif update.data == "setThumbnail":
+    elif cb_data == "setThumbnail":
         await update.message.edit(
             text=Translation.TEXT,
             reply_markup=Translation.BUTTONS,
             disable_web_page_preview=True
         )
 
-    elif update.data == "triggerGenSS":
+    elif cb_data == "triggerGenSS":
         await update.answer()
         generate_ss = await db.get_generate_ss(update.from_user.id)
         if generate_ss:
@@ -106,7 +120,7 @@ async def button(bot, update):
             await db.set_generate_ss(update.from_user.id, True)
         await OpenSettings(update.message)
 
-    elif update.data == "triggerGenSample":
+    elif cb_data == "triggerGenSample":
         await update.answer()
         generate_sample_video = await db.get_generate_sample_video(update.from_user.id)
         if generate_sample_video:
@@ -115,7 +129,7 @@ async def button(bot, update):
             await db.set_generate_sample_video(update.from_user.id, True)
         await OpenSettings(update.message)
 
-    elif update.data == "triggerUploadMode":
+    elif cb_data == "triggerUploadMode":
         await update.answer()
         upload_as_doc = await db.get_upload_as_doc(update.from_user.id)
         if upload_as_doc:
@@ -123,12 +137,12 @@ async def button(bot, update):
         else:
             await db.set_upload_as_doc(update.from_user.id, True)
         await OpenSettings(update.message)
-    elif "close" in update.data:
+    elif "close" in cb_data:
         await update.message.delete(True)
 
-    elif "|" in update.data:
+    elif "|" in cb_data:
         await youtube_dl_call_back(bot, update)
-    elif "=" in update.data:
+    elif "=" in cb_data:
         await ddl_call_back(bot, update)
 
     else:
