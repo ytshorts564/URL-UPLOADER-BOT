@@ -11,7 +11,9 @@ import math
 import os
 import shutil
 import time
+import re
 from datetime import datetime
+from urllib.parse import urlparse, unquote
 from plugins.config import Config
 from plugins.script import Translation
 from plugins.thumbnail import *
@@ -21,8 +23,45 @@ from plugins.functions.display_progress import progress_for_pyrogram, humanbytes
 from hachoir.metadata import extractMetadata
 from hachoir.parser import createParser
 from PIL import Image
-from pyrogram import enums 
+from pyrogram import enums
 
+
+async def get_real_filename_from_url(session, url):
+    """
+    Get the real filename from URL by checking Content-Disposition header.
+    Falls back to URL basename if no Content-Disposition header is found.
+    """
+    try:
+        async with session.head(url, allow_redirects=True, timeout=30) as response:
+            # Check Content-Disposition header for filename
+            content_disposition = response.headers.get('Content-Disposition', '')
+            if content_disposition:
+                # Try to extract filename from Content-Disposition
+                # Format: attachment; filename="filename.mkv" or attachment; filename*=UTF-8''filename.mkv
+                filename_match = re.findall(r'filename[*]?=["\']?(?:UTF-8\'\')?([^"\';]+)["\']?', content_disposition)
+                if filename_match:
+                    filename = filename_match[-1].strip()
+                    # URL decode the filename
+                    filename = unquote(filename)
+                    # Remove any path components, keep only the filename
+                    filename = os.path.basename(filename)
+                    if filename:
+                        logger.info(f"Found filename from Content-Disposition: {filename}")
+                        return filename
+
+            # Fallback: try to get filename from URL
+            parsed_url = urlparse(url)
+            url_filename = os.path.basename(unquote(parsed_url.path))
+            if url_filename and '.' in url_filename:
+                logger.info(f"Using filename from URL: {url_filename}")
+                return url_filename
+
+    except Exception as e:
+        logger.warning(f"Error getting filename from headers: {e}")
+
+    # Final fallback: use URL basename
+    parsed_url = urlparse(url)
+    return os.path.basename(unquote(parsed_url.path)) or "unknown_file"
 
 
 async def ddl_call_back(bot, update):
@@ -33,11 +72,16 @@ async def ddl_call_back(bot, update):
     thumb_image_path = Config.DOWNLOAD_LOCATION + \
         "/" + str(update.from_user.id) + ".jpg"
     youtube_dl_url = update.message.reply_to_message.text
-    custom_file_name = os.path.basename(youtube_dl_url)
+
+    # Get the real filename from URL headers first
+    async with aiohttp.ClientSession() as session:
+        custom_file_name = await get_real_filename_from_url(session, youtube_dl_url)
+
     if "|" in youtube_dl_url:
         url_parts = youtube_dl_url.split("|")
         if len(url_parts) == 2:
             youtube_dl_url = url_parts[0]
+            # User provided custom name takes priority
             custom_file_name = url_parts[1]
         else:
             for entity in update.message.reply_to_message.entities:
@@ -65,7 +109,7 @@ async def ddl_call_back(bot, update):
     description = Translation.CUSTOM_CAPTION_UL_FILE
     start = datetime.now()
     await update.message.edit_caption(
-        caption=Translation.DOWNLOAD_START,
+        caption=Translation.DOWNLOAD_START.format(custom_file_name),
         parse_mode=enums.ParseMode.HTML
     )
     tmp_directory_for_each_user = Config.DOWNLOAD_LOCATION + "/" + str(update.from_user.id)
@@ -107,12 +151,12 @@ async def ddl_call_back(bot, update):
             file_size = os.stat(download_directory).st_size
         if file_size > Config.TG_MAX_FILE_SIZE:
             await update.message.edit_caption(
-                
+
                 caption=Translation.RCHD_TG_API_LIMIT,
                 parse_mode=enums.ParseMode.HTML
             )
         else:
-            
+
             start_time = time.time()
             if (await db.get_upload_as_doc(update.from_user.id)) is False:
                 thumbnail = await Gthumb01(bot, update)
@@ -193,7 +237,7 @@ async def ddl_call_back(bot, update):
             time_taken_for_upload = (end_two - end_one).seconds
             await update.message.edit_caption(
                 caption=Translation.AFTER_SUCCESSFUL_UPLOAD_MSG_WITH_TS.format(time_taken_for_download, time_taken_for_upload),
-               
+
                 parse_mode=enums.ParseMode.HTML
             )
     else:
