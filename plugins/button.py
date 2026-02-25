@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import time
+import signal
 from datetime import datetime
 from pyrogram import enums
 from pyrogram.types import InputMediaPhoto
@@ -23,13 +24,17 @@ logging.basicConfig(level=logging.DEBUG,
 logger = logging.getLogger(__name__)
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
 
+# Global dictionary to track active yt-dlp processes for cancellation
+active_ytdlp_processes = {}
+
+
 async def youtube_dl_call_back(bot, update):
     cb_data = update.data
     tg_send_type, youtube_dl_format, youtube_dl_ext, ranom = cb_data.split("|")
     random1 = random_char(5)
-    
+
     save_ytdl_json_path = os.path.join(Config.DOWNLOAD_LOCATION, f"{update.from_user.id}{ranom}.json")
-    
+
     try:
         with open(save_ytdl_json_path, "r", encoding="utf8") as f:
             response_json = json.load(f)
@@ -37,12 +42,12 @@ async def youtube_dl_call_back(bot, update):
         logger.error(f"JSON file not found: {e}")
         await update.message.delete()
         return False
-    
+
     youtube_dl_url = update.message.reply_to_message.text
     custom_file_name = f"{response_json.get('title')}_{youtube_dl_format}.{youtube_dl_ext}"
     youtube_dl_username = None
     youtube_dl_password = None
-    
+
     if "|" in youtube_dl_url:
         url_parts = youtube_dl_url.split("|")
         if len(url_parts) == 2:
@@ -57,14 +62,14 @@ async def youtube_dl_call_back(bot, update):
                     o = entity.offset
                     l = entity.length
                     youtube_dl_url = youtube_dl_url[o:o + l]
-                    
+
         youtube_dl_url = youtube_dl_url.strip()
         custom_file_name = custom_file_name.strip()
         if youtube_dl_username:
             youtube_dl_username = youtube_dl_username.strip()
         if youtube_dl_password:
             youtube_dl_password = youtube_dl_password.strip()
-        
+
         logger.info(youtube_dl_url)
         logger.info(custom_file_name)
     else:
@@ -76,18 +81,27 @@ async def youtube_dl_call_back(bot, update):
                 l = entity.length
                 youtube_dl_url = youtube_dl_url[o:o + l]
 
+    # Generate cancel ID
+    cancel_id = f"{update.from_user.id}_{int(time.time())}_ytdl"
+
+    # Add cancel button
+    cancel_markup = InlineKeyboardMarkup([
+        [InlineKeyboardButton("❌ Cancel Download", callback_data=f"cancel_ytdl_{cancel_id}")]
+    ])
+
     await update.message.edit_caption(
-        caption=Translation.DOWNLOAD_START.format(custom_file_name)
+        caption=Translation.DOWNLOAD_START.format(custom_file_name),
+        reply_markup=cancel_markup
     )
-    
+
     description = Translation.CUSTOM_CAPTION_UL_FILE
     if "fulltitle" in response_json:
         description = response_json["fulltitle"][0:1021]
-    
+
     tmp_directory_for_each_user = os.path.join(Config.DOWNLOAD_LOCATION, f"{update.from_user.id}{random1}")
     os.makedirs(tmp_directory_for_each_user, exist_ok=True)
     download_directory = os.path.join(tmp_directory_for_each_user, custom_file_name)
-    
+
     command_to_exec = [
         "yt-dlp",
         "-c",
@@ -100,7 +114,7 @@ async def youtube_dl_call_back(bot, update):
         youtube_dl_url,
         "-o", download_directory
     ]
-    
+
     if tg_send_type == "audio":
         command_to_exec = [
             "yt-dlp",
@@ -115,38 +129,62 @@ async def youtube_dl_call_back(bot, update):
             youtube_dl_url,
             "-o", download_directory
         ]
-    
+
     if Config.HTTP_PROXY:
         command_to_exec.extend(["--proxy", Config.HTTP_PROXY])
     if youtube_dl_username:
         command_to_exec.extend(["--username", youtube_dl_username])
     if youtube_dl_password:
         command_to_exec.extend(["--password", youtube_dl_password])
-    
+
     command_to_exec.append("--no-warnings")
-    
+
     logger.info(command_to_exec)
     start = datetime.now()
-    
+
+    # Create subprocess
     process = await asyncio.create_subprocess_exec(
         *command_to_exec,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
-    
+
+    # Register process for cancellation
+    active_ytdlp_processes[cancel_id] = {"process": process, "cancelled": False}
+
     stdout, stderr = await process.communicate()
     e_response = stderr.decode().strip()
     t_response = stdout.decode().strip()
     logger.info(e_response)
     logger.info(t_response)
-    
+
+    # Check if cancelled
+    if cancel_id in active_ytdlp_processes and active_ytdlp_processes[cancel_id].get("cancelled"):
+        await update.message.edit_caption(
+            caption="❌ Download Cancelled",
+            reply_markup=None
+        )
+        # Clean up
+        try:
+            if os.path.exists(tmp_directory_for_each_user):
+                shutil.rmtree(tmp_directory_for_each_user)
+        except:
+            pass
+        if cancel_id in active_ytdlp_processes:
+            del active_ytdlp_processes[cancel_id]
+        return False
+
+    # Remove from active processes
+    if cancel_id in active_ytdlp_processes:
+        del active_ytdlp_processes[cancel_id]
+
     if process.returncode != 0:
         logger.error(f"yt-dlp command failed with return code {process.returncode}")
         await update.message.edit_caption(
             caption=f"Error: {e_response}"
         )
         return False
-    
+
     ad_string_to_replace = "**Invalid link !**"
     if e_response and ad_string_to_replace in e_response:
         error_message = e_response.replace(ad_string_to_replace, "")
@@ -161,10 +199,10 @@ async def youtube_dl_call_back(bot, update):
             os.remove(save_ytdl_json_path)
         except FileNotFoundError:
             pass
-        
+
         end_one = datetime.now()
         time_taken_for_download = (end_one - start).seconds
-        
+
         if os.path.isfile(download_directory):
             file_size = os.stat(download_directory).st_size
         else:
@@ -177,95 +215,147 @@ async def youtube_dl_call_back(bot, update):
                     caption=Translation.DOWNLOAD_FAILED
                 )
                 return False
-        
+
         if file_size > Config.TG_MAX_FILE_SIZE:
             await update.message.edit_caption(
                 caption=Translation.RCHD_TG_API_LIMIT.format(time_taken_for_download, humanbytes(file_size))
             )
         else:
+            # Add cancel button for upload
+            upload_cancel_id = f"{update.from_user.id}_{int(time.time())}_ytdl_upload"
+            upload_cancel_markup = InlineKeyboardMarkup([
+                [InlineKeyboardButton("❌ Cancel Upload", callback_data=f"cancel_ul_{upload_cancel_id}")]
+            ])
+
             await update.message.edit_caption(
-                caption=Translation.UPLOAD_START.format(custom_file_name)
+                caption=Translation.UPLOAD_START.format(custom_file_name),
+                reply_markup=upload_cancel_markup
             )
+
+            # Import active downloads from dl_button
+            from plugins.dl_button import active_downloads
+            active_downloads[upload_cancel_id] = {"cancelled": False}
+
             start_time = time.time()
-            if not await db.get_upload_as_doc(update.from_user.id):
-                thumbnail = await Gthumb01(bot, update)
-                await update.message.reply_document(
-                    document=download_directory,
-                    file_name=custom_file_name,
-                    thumb=thumbnail,
-                    caption=description,
-                    progress=progress_for_pyrogram,
-                    progress_args=(
-                        Translation.UPLOAD_START,
-                        update.message,
-                        start_time
+            upload_cancelled = False
+
+            try:
+                if not await db.get_upload_as_doc(update.from_user.id):
+                    thumbnail = await Gthumb01(bot, update)
+                    await update.message.reply_document(
+                        document=download_directory,
+                        file_name=custom_file_name,
+                        thumb=thumbnail,
+                        caption=description,
+                        progress=progress_for_pyrogram,
+                        progress_args=(
+                            Translation.UPLOAD_START,
+                            update.message,
+                            start_time
+                        )
                     )
-                )
-            else:
-                width, height, duration = await Mdata01(download_directory)
-                thumb_image_path = await Gthumb02(bot, update, duration, download_directory)
-                await update.message.reply_video(
-                    video=download_directory,
-                    file_name=custom_file_name,
-                    caption=description,
-                    duration=duration,
-                    width=width,
-                    height=height,
-                    supports_streaming=True,
-                    thumb=thumb_image_path,
-                    progress=progress_for_pyrogram,
-                    progress_args=(
-                        Translation.UPLOAD_START,
-                        update.message,
-                        start_time
+                else:
+                    width, height, duration = await Mdata01(download_directory)
+                    thumb_image_path = await Gthumb02(bot, update, duration, download_directory)
+                    await update.message.reply_video(
+                        video=download_directory,
+                        file_name=custom_file_name,
+                        caption=description,
+                        duration=duration,
+                        width=width,
+                        height=height,
+                        supports_streaming=True,
+                        thumb=thumb_image_path,
+                        progress=progress_for_pyrogram,
+                        progress_args=(
+                            Translation.UPLOAD_START,
+                            update.message,
+                            start_time
+                        )
                     )
-                )
-            
-            if tg_send_type == "audio":
-                duration = await Mdata03(download_directory)
-                thumbnail = await Gthumb01(bot, update)
-                await update.message.reply_audio(
-                    audio=download_directory,
-                    file_name=custom_file_name,
-                    caption=description,
-                    duration=duration,
-                    thumb=thumbnail,
-                    progress=progress_for_pyrogram,
-                    progress_args=(
-                        Translation.UPLOAD_START,
-                        update.message,
-                        start_time
+
+                if tg_send_type == "audio":
+                    duration = await Mdata03(download_directory)
+                    thumbnail = await Gthumb01(bot, update)
+                    await update.message.reply_audio(
+                        audio=download_directory,
+                        file_name=custom_file_name,
+                        caption=description,
+                        duration=duration,
+                        thumb=thumbnail,
+                        progress=progress_for_pyrogram,
+                        progress_args=(
+                            Translation.UPLOAD_START,
+                            update.message,
+                            start_time
+                        )
                     )
-                )
-            elif tg_send_type == "vm":
-                width, duration = await Mdata02(download_directory)
-                thumbnail = await Gthumb02(bot, update, duration, download_directory)
-                await update.message.reply_video_note(
-                    video_note=download_directory,
-                    duration=duration,
-                    length=width,
-                    thumb=thumbnail,
-                    progress=progress_for_pyrogram,
-                    progress_args=(
-                        Translation.UPLOAD_START,
-                        update.message,
-                        start_time
+                elif tg_send_type == "vm":
+                    width, duration = await Mdata02(download_directory)
+                    thumbnail = await Gthumb02(bot, update, duration, download_directory)
+                    await update.message.reply_video_note(
+                        video_note=download_directory,
+                        duration=duration,
+                        length=width,
+                        thumb=thumbnail,
+                        progress=progress_for_pyrogram,
+                        progress_args=(
+                            Translation.UPLOAD_START,
+                            update.message,
+                            start_time
+                        )
                     )
-                )
-            else:
-                logger.info("✅ " + custom_file_name)
-            
+                else:
+                    logger.info("✅ " + custom_file_name)
+
+            except Exception as e:
+                logger.error(f"Upload error: {e}")
+                upload_cancelled = True
+
             end_two = datetime.now()
-            time_taken_for_upload = (end_two - end_one).seconds
+
+            # Check if upload was cancelled
+            if upload_cancel_id in active_downloads and active_downloads[upload_cancel_id].get("cancelled"):
+                upload_cancelled = True
+
+            if upload_cancel_id in active_downloads:
+                del active_downloads[upload_cancel_id]
+
+            if upload_cancelled:
+                await update.message.edit_caption(
+                    caption="❌ Upload Cancelled",
+                    reply_markup=None
+                )
+            else:
+                time_taken_for_upload = (end_two - end_one).seconds
+                await update.message.edit_caption(
+                    caption=Translation.AFTER_SUCCESSFUL_UPLOAD_MSG_WITH_TS.format(time_taken_for_download, time_taken_for_upload)
+                )
+
+                logger.info(f"✅ Downloaded in: {time_taken_for_download} seconds")
+                logger.info(f"✅ Uploaded in: {time_taken_for_upload} seconds")
+
+            # Cleanup
             try:
                 shutil.rmtree(tmp_directory_for_each_user)
-                os.remove(thumbnail)
+                if os.path.exists(thumbnail):
+                    os.remove(thumbnail)
             except Exception as e:
                 logger.error(f"Error cleaning up: {e}")
-            
-            await update.message.edit_caption(
-                caption=Translation.AFTER_SUCCESSFUL_UPLOAD_MSG_WITH_TS.format(time_taken_for_download, time_taken_for_upload)
-            )
-            
-            logger.info(f"✅ Downloaded in: {time_taken_for_download} seconds")
-            logger.info(f"✅ Uploaded in: {time_taken_for_upload} seconds")
+
+
+async def handle_ytdl_cancel(bot, update, cancel_id):
+    """Handle cancel for yt-dlp downloads"""
+    if cancel_id in active_ytdlp_processes:
+        active_ytdlp_processes[cancel_id]["cancelled"] = True
+        process = active_ytdlp_processes[cancel_id]["process"]
+        try:
+            process.terminate()
+            await asyncio.sleep(1)
+            if process.returncode is None:
+                process.kill()
+        except:
+            pass
+        await update.answer("Cancelling download...", show_alert=False)
+    else:
+        await update.answer("Download not found or already completed", show_alert=True)
