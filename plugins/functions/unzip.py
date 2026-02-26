@@ -277,6 +277,11 @@ async def upload_extracted_files(bot, update, extracted_files, start_time, tmp_d
             caption=f"✅ Auto Unzip Complete!\n\n📤 Unzip Success: {uploaded_count} files\n❌ Unzip Failed: {failed_count} files",
             reply_markup=None
         )
+        # Send unzip complete message after all files
+        await update.message.reply_text(
+            "✅ **Unzip Completed** ✅",
+            parse_mode=enums.ParseMode.MARKDOWN
+        )
         return True
     else:
         await update.message.edit_caption(
@@ -313,7 +318,7 @@ async def handle_auto_unzip(bot, update, download_directory, tmp_directory_for_e
 
         # Update message
         await update.message.edit_caption(
-            caption="📦 ZIP FILE DETECTED!\n🔄 Extracting Files...",
+            caption="📦 ZIP FILE DETECTED!\n\n🔄 Extracting Files...",
             reply_markup=None
         )
 
