@@ -88,7 +88,7 @@ async def button(bot, update):
         )
     elif cb_data == "OpenSettings":
         await update.answer()
-        await OpenSettings(update.message)
+        await OpenSettings(update.message, user_id=update.from_user.id)
     elif cb_data == "showThumbnail":
         thumbnail = await db.get_thumbnail(update.from_user.id)
         if not thumbnail:
@@ -118,7 +118,7 @@ async def button(bot, update):
             await db.set_generate_ss(update.from_user.id, False)
         else:
             await db.set_generate_ss(update.from_user.id, True)
-        await OpenSettings(update.message)
+        await OpenSettings(update.message, user_id=update.from_user.id)
 
     elif cb_data == "triggerGenSample":
         await update.answer()
@@ -127,7 +127,7 @@ async def button(bot, update):
             await db.set_generate_sample_video(update.from_user.id, False)
         else:
             await db.set_generate_sample_video(update.from_user.id, True)
-        await OpenSettings(update.message)
+        await OpenSettings(update.message, user_id=update.from_user.id)
 
     elif cb_data == "triggerUploadMode":
         await update.answer()
@@ -136,7 +136,7 @@ async def button(bot, update):
             await db.set_upload_as_doc(update.from_user.id, False)
         else:
             await db.set_upload_as_doc(update.from_user.id, True)
-        await OpenSettings(update.message)
+        await OpenSettings(update.message, user_id=update.from_user.id)
 
     elif cb_data == "triggerAutoUnzip":
         await update.answer()
@@ -145,7 +145,7 @@ async def button(bot, update):
             await db.set_auto_unzip(update.from_user.id, False)
         else:
             await db.set_auto_unzip(update.from_user.id, True)
-        await OpenSettings(update.message)
+        await OpenSettings(update.message, user_id=update.from_user.id)
 
     elif cb_data == "triggerAutoCaption":
         await update.answer()
@@ -154,16 +154,20 @@ async def button(bot, update):
             await db.set_auto_caption(update.from_user.id, False)
         else:
             await db.set_auto_caption(update.from_user.id, True)
-        await OpenSettings(update.message)
+        await OpenSettings(update.message, user_id=update.from_user.id)
 
     elif cb_data == "triggerPrivateMode":
+        # Only allow admin to toggle private mode
+        if update.from_user.id not in Config.ADMIN:
+            await update.answer("⛔ Only bot admin can access this setting!", show_alert=True)
+            return
         await update.answer()
         private_mode = await db.get_private_mode(update.from_user.id)
         if private_mode:
             await db.set_private_mode(update.from_user.id, False)
         else:
             await db.set_private_mode(update.from_user.id, True)
-        await OpenSettings(update.message)
+        await OpenSettings(update.message, user_id=update.from_user.id)
 
     elif "close" in cb_data:
         await update.message.delete(True)
