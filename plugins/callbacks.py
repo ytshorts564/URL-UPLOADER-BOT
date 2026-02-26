@@ -156,6 +156,15 @@ async def button(bot, update):
             await db.set_auto_caption(update.from_user.id, True)
         await OpenSettings(update.message)
 
+    elif cb_data == "triggerPrivateMode":
+        await update.answer()
+        private_mode = await db.get_private_mode(update.from_user.id)
+        if private_mode:
+            await db.set_private_mode(update.from_user.id, False)
+        else:
+            await db.set_private_mode(update.from_user.id, True)
+        await OpenSettings(update.message)
+
     elif "close" in cb_data:
         await update.message.delete(True)
 
