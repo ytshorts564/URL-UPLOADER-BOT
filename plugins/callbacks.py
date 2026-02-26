@@ -1,11 +1,9 @@
 import os
-import shutil
-import psutil
 from plugins.functions.display_progress import progress_for_pyrogram, humanbytes
 from plugins.config import Config
 from plugins.dl_button import ddl_call_back, handle_cancel_callback
 from plugins.button import youtube_dl_call_back, handle_ytdl_cancel, active_ytdlp_processes
-from plugins.settings.settings import OpenSettings, OpenUserCommands, OpenAdminCommands
+from plugins.settings.settings import OpenSettings
 from plugins.script import Translation
 from pyrogram import Client, types
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -14,26 +12,6 @@ import logging
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
-
-def is_admin_user(user_id):
-    """Check if user is admin (OWNER_ID or in ADMIN set)"""
-    try:
-        user_id_int = int(user_id)
-        owner_id_int = int(Config.OWNER_ID)
-        admin_list = [int(x) for x in Config.ADMIN] if Config.ADMIN else []
-    except (ValueError, TypeError):
-        user_id_int = user_id
-        owner_id_int = Config.OWNER_ID
-        admin_list = list(Config.ADMIN) if Config.ADMIN else []
-    
-    is_owner = user_id_int == owner_id_int
-    is_in_admin = user_id_int in admin_list
-    
-    print(f"[DEBUG CALLBACKS] user_id: {user_id_int}, OWNER_ID: {owner_id_int}, ADMIN: {admin_list}")
-    print(f"[DEBUG CALLBACKS] is_owner: {is_owner}, is_in_admin: {is_in_admin}")
-    
-    return is_owner or is_in_admin
 
 
 
@@ -110,108 +88,7 @@ async def button(bot, update):
         )
     elif cb_data == "OpenSettings":
         await update.answer()
-        await OpenSettings(update.message, user_id=update.from_user.id)
-    
-    # User Commands submenu
-    elif cb_data == "userCommands":
-        await update.answer()
-        await OpenUserCommands(update.message, user_id=update.from_user.id)
-    
-    # Admin Commands submenu
-    elif cb_data == "adminCommands":
-        await update.answer()
-        await OpenAdminCommands(update.message, user_id=update.from_user.id)
-    
-    # Admin - Bot Status
-    elif cb_data == "botStatus":
-        if not is_admin_user(update.from_user.id):
-            await update.answer("⛔ Only bot admin can access this!", show_alert=True)
-            return
-        await update.answer()
-        total, used, free = shutil.disk_usage(".")
-        total = humanbytes(total)
-        used = humanbytes(used)
-        free = humanbytes(free)
-        cpu_usage = psutil.cpu_percent()
-        ram_usage = psutil.virtual_memory().percent
-        disk_usage = psutil.disk_usage('/').percent
-        
-        status_text = (
-            f"**📊 BOT STATUS**\n\n"
-            f"**💾 Disk Usage:**\n"
-            f"├ Total: {total}\n"
-            f"├ Used: {used} ({disk_usage}%)\n"
-            f"└ Free: {free}\n\n"
-            f"**⚡ System Usage:**\n"
-            f"├ CPU: {cpu_usage}%\n"
-            f"└ RAM: {ram_usage}%"
-        )
-        
-        buttons_markup = [
-            [types.InlineKeyboardButton("🔄 REFRESH", callback_data="botStatus")],
-            [types.InlineKeyboardButton("🔙 BACK", callback_data="adminCommands")],
-        ]
-        
-        await update.message.edit(
-            text=status_text,
-            reply_markup=types.InlineKeyboardMarkup(buttons_markup),
-            disable_web_page_preview=True,
-        )
-    
-    # Admin - Total Users
-    elif cb_data == "totalUsers":
-        if not is_admin_user(update.from_user.id):
-            await update.answer("⛔ Only bot admin can access this!", show_alert=True)
-            return
-        await update.answer()
-        total_users = await db.total_users_count()
-        
-        buttons_markup = [
-            [types.InlineKeyboardButton("🔄 REFRESH", callback_data="totalUsers")],
-            [types.InlineKeyboardButton("🔙 BACK", callback_data="adminCommands")],
-        ]
-        
-        await update.message.edit(
-            text=f"**👥 TOTAL USERS**\n\nTotal users in database: `{total_users}`",
-            reply_markup=types.InlineKeyboardMarkup(buttons_markup),
-            disable_web_page_preview=True,
-        )
-    
-    # Admin - Broadcast Menu
-    elif cb_data == "broadcastMenu":
-        if not is_admin_user(update.from_user.id):
-            await update.answer("⛔ Only bot admin can access this!", show_alert=True)
-            return
-        await update.answer()
-        
-        buttons_markup = [
-            [types.InlineKeyboardButton("📢 START BROADCAST", callback_data="startBroadcast")],
-            [types.InlineKeyboardButton("🔙 BACK", callback_data="adminCommands")],
-        ]
-        
-        await update.message.edit(
-            text="**📢 BROADCAST MENU**\n\nUse the button below to start a broadcast to all users.",
-            reply_markup=types.InlineKeyboardMarkup(buttons_markup),
-            disable_web_page_preview=True,
-        )
-    
-    # Admin - Start Broadcast (placeholder - actual broadcast logic should be implemented)
-    elif cb_data == "startBroadcast":
-        if not is_admin_user(update.from_user.id):
-            await update.answer("⛔ Only bot admin can access this!", show_alert=True)
-            return
-        await update.answer()
-        
-        buttons_markup = [
-            [types.InlineKeyboardButton("🔙 BACK", callback_data="broadcastMenu")],
-        ]
-        
-        await update.message.edit(
-            text="**📢 BROADCAST**\n\nPlease use the `/broadcast` command to send a broadcast message.",
-            reply_markup=types.InlineKeyboardMarkup(buttons_markup),
-            disable_web_page_preview=True,
-        )
-    
+        await OpenSettings(update.message)
     elif cb_data == "showThumbnail":
         thumbnail = await db.get_thumbnail(update.from_user.id)
         if not thumbnail:
@@ -241,7 +118,7 @@ async def button(bot, update):
             await db.set_generate_ss(update.from_user.id, False)
         else:
             await db.set_generate_ss(update.from_user.id, True)
-        await OpenUserCommands(update.message, user_id=update.from_user.id)
+        await OpenSettings(update.message)
 
     elif cb_data == "triggerGenSample":
         await update.answer()
@@ -250,7 +127,7 @@ async def button(bot, update):
             await db.set_generate_sample_video(update.from_user.id, False)
         else:
             await db.set_generate_sample_video(update.from_user.id, True)
-        await OpenUserCommands(update.message, user_id=update.from_user.id)
+        await OpenSettings(update.message)
 
     elif cb_data == "triggerUploadMode":
         await update.answer()
@@ -259,7 +136,7 @@ async def button(bot, update):
             await db.set_upload_as_doc(update.from_user.id, False)
         else:
             await db.set_upload_as_doc(update.from_user.id, True)
-        await OpenUserCommands(update.message, user_id=update.from_user.id)
+        await OpenSettings(update.message)
 
     elif cb_data == "triggerAutoUnzip":
         await update.answer()
@@ -268,7 +145,7 @@ async def button(bot, update):
             await db.set_auto_unzip(update.from_user.id, False)
         else:
             await db.set_auto_unzip(update.from_user.id, True)
-        await OpenUserCommands(update.message, user_id=update.from_user.id)
+        await OpenSettings(update.message)
 
     elif cb_data == "triggerAutoCaption":
         await update.answer()
@@ -277,20 +154,7 @@ async def button(bot, update):
             await db.set_auto_caption(update.from_user.id, False)
         else:
             await db.set_auto_caption(update.from_user.id, True)
-        await OpenUserCommands(update.message, user_id=update.from_user.id)
-
-    elif cb_data == "triggerPrivateMode":
-        # Only allow admin to toggle private mode
-        if not is_admin_user(update.from_user.id):
-            await update.answer("⛔ Only bot admin can access this setting!", show_alert=True)
-            return
-        await update.answer()
-        private_mode = await db.get_private_mode(update.from_user.id)
-        if private_mode:
-            await db.set_private_mode(update.from_user.id, False)
-        else:
-            await db.set_private_mode(update.from_user.id, True)
-        await OpenAdminCommands(update.message, user_id=update.from_user.id)
+        await OpenSettings(update.message)
 
     elif "close" in cb_data:
         await update.message.delete(True)
