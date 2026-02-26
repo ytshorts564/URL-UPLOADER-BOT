@@ -1,9 +1,11 @@
 import os
+import shutil
+import psutil
 from plugins.functions.display_progress import progress_for_pyrogram, humanbytes
 from plugins.config import Config
 from plugins.dl_button import ddl_call_back, handle_cancel_callback
 from plugins.button import youtube_dl_call_back, handle_ytdl_cancel, active_ytdlp_processes
-from plugins.settings.settings import OpenSettings
+from plugins.settings.settings import OpenSettings, OpenUserCommands, OpenAdminCommands
 from plugins.script import Translation
 from pyrogram import Client, types
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -89,6 +91,107 @@ async def button(bot, update):
     elif cb_data == "OpenSettings":
         await update.answer()
         await OpenSettings(update.message, user_id=update.from_user.id)
+    
+    # User Commands submenu
+    elif cb_data == "userCommands":
+        await update.answer()
+        await OpenUserCommands(update.message, user_id=update.from_user.id)
+    
+    # Admin Commands submenu
+    elif cb_data == "adminCommands":
+        await update.answer()
+        await OpenAdminCommands(update.message, user_id=update.from_user.id)
+    
+    # Admin - Bot Status
+    elif cb_data == "botStatus":
+        if update.from_user.id not in Config.ADMIN:
+            await update.answer("⛔ Only bot admin can access this!", show_alert=True)
+            return
+        await update.answer()
+        total, used, free = shutil.disk_usage(".")
+        total = humanbytes(total)
+        used = humanbytes(used)
+        free = humanbytes(free)
+        cpu_usage = psutil.cpu_percent()
+        ram_usage = psutil.virtual_memory().percent
+        disk_usage = psutil.disk_usage('/').percent
+        
+        status_text = (
+            f"**📊 BOT STATUS**\n\n"
+            f"**💾 Disk Usage:**\n"
+            f"├ Total: {total}\n"
+            f"├ Used: {used} ({disk_usage}%)\n"
+            f"└ Free: {free}\n\n"
+            f"**⚡ System Usage:**\n"
+            f"├ CPU: {cpu_usage}%\n"
+            f"└ RAM: {ram_usage}%"
+        )
+        
+        buttons_markup = [
+            [types.InlineKeyboardButton("🔄 REFRESH", callback_data="botStatus")],
+            [types.InlineKeyboardButton("🔙 BACK", callback_data="adminCommands")],
+        ]
+        
+        await update.message.edit(
+            text=status_text,
+            reply_markup=types.InlineKeyboardMarkup(buttons_markup),
+            disable_web_page_preview=True,
+        )
+    
+    # Admin - Total Users
+    elif cb_data == "totalUsers":
+        if update.from_user.id not in Config.ADMIN:
+            await update.answer("⛔ Only bot admin can access this!", show_alert=True)
+            return
+        await update.answer()
+        total_users = await db.total_users_count()
+        
+        buttons_markup = [
+            [types.InlineKeyboardButton("🔄 REFRESH", callback_data="totalUsers")],
+            [types.InlineKeyboardButton("🔙 BACK", callback_data="adminCommands")],
+        ]
+        
+        await update.message.edit(
+            text=f"**👥 TOTAL USERS**\n\nTotal users in database: `{total_users}`",
+            reply_markup=types.InlineKeyboardMarkup(buttons_markup),
+            disable_web_page_preview=True,
+        )
+    
+    # Admin - Broadcast Menu
+    elif cb_data == "broadcastMenu":
+        if update.from_user.id not in Config.ADMIN:
+            await update.answer("⛔ Only bot admin can access this!", show_alert=True)
+            return
+        await update.answer()
+        
+        buttons_markup = [
+            [types.InlineKeyboardButton("📢 START BROADCAST", callback_data="startBroadcast")],
+            [types.InlineKeyboardButton("🔙 BACK", callback_data="adminCommands")],
+        ]
+        
+        await update.message.edit(
+            text="**📢 BROADCAST MENU**\n\nUse the button below to start a broadcast to all users.",
+            reply_markup=types.InlineKeyboardMarkup(buttons_markup),
+            disable_web_page_preview=True,
+        )
+    
+    # Admin - Start Broadcast (placeholder - actual broadcast logic should be implemented)
+    elif cb_data == "startBroadcast":
+        if update.from_user.id not in Config.ADMIN:
+            await update.answer("⛔ Only bot admin can access this!", show_alert=True)
+            return
+        await update.answer()
+        
+        buttons_markup = [
+            [types.InlineKeyboardButton("🔙 BACK", callback_data="broadcastMenu")],
+        ]
+        
+        await update.message.edit(
+            text="**📢 BROADCAST**\n\nPlease use the `/broadcast` command to send a broadcast message.",
+            reply_markup=types.InlineKeyboardMarkup(buttons_markup),
+            disable_web_page_preview=True,
+        )
+    
     elif cb_data == "showThumbnail":
         thumbnail = await db.get_thumbnail(update.from_user.id)
         if not thumbnail:
@@ -118,7 +221,7 @@ async def button(bot, update):
             await db.set_generate_ss(update.from_user.id, False)
         else:
             await db.set_generate_ss(update.from_user.id, True)
-        await OpenSettings(update.message, user_id=update.from_user.id)
+        await OpenUserCommands(update.message, user_id=update.from_user.id)
 
     elif cb_data == "triggerGenSample":
         await update.answer()
@@ -127,7 +230,7 @@ async def button(bot, update):
             await db.set_generate_sample_video(update.from_user.id, False)
         else:
             await db.set_generate_sample_video(update.from_user.id, True)
-        await OpenSettings(update.message, user_id=update.from_user.id)
+        await OpenUserCommands(update.message, user_id=update.from_user.id)
 
     elif cb_data == "triggerUploadMode":
         await update.answer()
@@ -136,7 +239,7 @@ async def button(bot, update):
             await db.set_upload_as_doc(update.from_user.id, False)
         else:
             await db.set_upload_as_doc(update.from_user.id, True)
-        await OpenSettings(update.message, user_id=update.from_user.id)
+        await OpenUserCommands(update.message, user_id=update.from_user.id)
 
     elif cb_data == "triggerAutoUnzip":
         await update.answer()
@@ -145,7 +248,7 @@ async def button(bot, update):
             await db.set_auto_unzip(update.from_user.id, False)
         else:
             await db.set_auto_unzip(update.from_user.id, True)
-        await OpenSettings(update.message, user_id=update.from_user.id)
+        await OpenUserCommands(update.message, user_id=update.from_user.id)
 
     elif cb_data == "triggerAutoCaption":
         await update.answer()
@@ -154,7 +257,7 @@ async def button(bot, update):
             await db.set_auto_caption(update.from_user.id, False)
         else:
             await db.set_auto_caption(update.from_user.id, True)
-        await OpenSettings(update.message, user_id=update.from_user.id)
+        await OpenUserCommands(update.message, user_id=update.from_user.id)
 
     elif cb_data == "triggerPrivateMode":
         # Only allow admin to toggle private mode
@@ -167,7 +270,7 @@ async def button(bot, update):
             await db.set_private_mode(update.from_user.id, False)
         else:
             await db.set_private_mode(update.from_user.id, True)
-        await OpenSettings(update.message, user_id=update.from_user.id)
+        await OpenAdminCommands(update.message, user_id=update.from_user.id)
 
     elif "close" in cb_data:
         await update.message.delete(True)
