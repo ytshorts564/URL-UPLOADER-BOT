@@ -128,7 +128,7 @@ Usᴇ ʜᴇʟᴘ ʙᴜᴛᴛᴏɴ ᴛᴏ ᴋɴᴏᴡ ʜᴏᴡ ᴛᴏ ᴜsᴇ ᴍ
     SAVED_CUSTOM_THUMB_NAIL = "**SAVED THUMBNAIL** ✅"
     DEL_ETED_CUSTOM_THUMB_NAIL = "**DELETED THUMBNAIL** ✅"
     FF_MPEG_DEL_ETED_CUSTOM_MEDIA = "✅ Media cleared succesfully."
-    CUSTOM_CAPTION_UL_FILE = "<code>{file_name}</code>"
+    CUSTOM_CAPTION_UL_FILE = "<code>{filename}</code>"
     NO_CUSTOM_THUMB_NAIL_FOUND = "Nᴏ Cᴜsᴛᴏᴍ Tʜᴜᴍʙɴᴀɪʟ"
     NO_VOID_FORMAT_FOUND = "ERROR... <code>{}</code>"
     FILE_NOT_FOUND = "Error, File not Found!!"
