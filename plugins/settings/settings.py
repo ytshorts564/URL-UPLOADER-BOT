@@ -14,8 +14,8 @@ async def OpenSettings(m: "types.Message", user_id: int = None):
         return
     thumbnail = user_data.get("thumbnail", None)
     
-    # Check if user is admin
-    is_admin = usr_id in Config.ADMIN
+    # Check if user is admin (OWNER_ID or in ADMIN set)
+    is_admin = (usr_id == Config.OWNER_ID) or (usr_id in Config.ADMIN)
     
     buttons_markup = [
         [types.InlineKeyboardButton("👤 USER COMMANDS", callback_data="userCommands")],
@@ -84,8 +84,8 @@ async def OpenAdminCommands(m: "types.Message", user_id: int = None):
     """Open Admin Commands submenu - only accessible by admins"""
     usr_id = user_id if user_id else m.chat.id
     
-    # Check if user is admin
-    if usr_id not in Config.ADMIN:
+    # Check if user is admin (OWNER_ID or in ADMIN set)
+    if (usr_id != Config.OWNER_ID) and (usr_id not in Config.ADMIN):
         await m.edit("⛔ You are not authorized to access this menu!")
         return
     
