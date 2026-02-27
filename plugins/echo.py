@@ -244,127 +244,190 @@ async def echo(bot, update):
         save_ytdl_json_path = Config.DOWNLOAD_LOCATION +             "/" + str(update.from_user.id) + f'{randem}' + ".json"
         with open(save_ytdl_json_path, "w", encoding="utf8") as outfile:
             json.dump(response_json, outfile, ensure_ascii=False)
-        # logger.info(response_json)
-        inline_keyboard = []
-        duration = None
-        if "duration" in response_json:
-            duration = response_json["duration"]
-        if "formats" in response_json:
-            for formats in response_json["formats"]:
-                format_id = formats.get("format_id")
-                format_string = formats.get("format_note")
-                if format_string is None:
-                    format_string = formats.get("format")
-                if "DASH" in format_string.upper():
-                    continue
 
-                format_ext = formats.get("ext")
-                if formats.get('filesize'):
-                    size = formats['filesize']
-                elif formats.get('filesize_approx'):
-                    size = formats['filesize_approx']
+        # Skip format selection - use user settings directly
+        await chk.delete()
+
+        # Get user's upload preference from settings
+        upload_as_doc = await db.get_upload_as_doc(update.from_user.id)
+
+        # Select best format automatically (highest quality with reasonable size)
+        best_format = None
+        best_size = 0
+        if "formats" in response_json:
+            for fmt in response_json["formats"]:
+                format_id = fmt.get("format_id")
+                format_ext = fmt.get("ext", "mp4")
+                if fmt.get('filesize'):
+                    size = fmt['filesize']
+                elif fmt.get('filesize_approx'):
+                    size = fmt['filesize_approx']
                 else:
                     size = 0
-                cb_string_video = "{}|{}|{}|{}".format(
-                    "video", format_id, format_ext, randem)
-                cb_string_file = "{}|{}|{}|{}".format(
-                    "file", format_id, format_ext, randem)
-                if format_string is not None and not "audio only" in format_string:
-                    ikeyboard = [
-                        InlineKeyboardButton(
-                            "📁 " + format_string + " " + format_ext + " " + humanbytes(size) + " ",
-                            callback_data=(cb_string_video).encode("UTF-8")
-                        )
-                    ]
-                    """if duration is not None:
-                        cb_string_video_message = "{}|{}|{}|{}|{}".format(
-                            "vm", format_id, format_ext, ran, randem)
-                        ikeyboard.append(
-                            InlineKeyboardButton(
-                                "VM",
-                                callback_data=(
-                                    cb_string_video_message).encode("UTF-8")
-                            )
-                        )"""
-                else:
-                    # special weird case :\
-                    ikeyboard = [
-                        InlineKeyboardButton(
-                            "📁 [" +
-                            "] ( " +
-                            humanbytes(size) + " )",
-                            callback_data=(cb_string_video).encode("UTF-8")
-                        )
-                    ]
-                inline_keyboard.append(ikeyboard)
-            if duration is not None:
-                cb_string_64 = "{}|{}|{}|{}".format("audio", "64k", "mp3", randem)
-                cb_string_128 = "{}|{}|{}|{}".format("audio", "128k", "mp3", randem)
-                cb_string_320 = "{}|{}|{}|{}".format("audio", "320k", "mp3", randem)
-                inline_keyboard.append([
-                    InlineKeyboardButton(
-                        "🎵 ᴍᴘ𝟹 " + "(" + "64 ᴋʙᴘs" + ")", callback_data=cb_string_64.encode("UTF-8")),
-                    InlineKeyboardButton(
-                        "🎵 ᴍᴘ𝟹 " + "(" + "128 ᴋʙᴘs" + ")", callback_data=cb_string_128.encode("UTF-8"))
-                ])
-                inline_keyboard.append([
-                    InlineKeyboardButton(
-                        "🎵 ᴍᴘ𝟹 " + "(" + "320 ᴋʙᴘs" + ")", callback_data=cb_string_320.encode("UTF-8"))
-                ])
-                inline_keyboard.append([
-                    InlineKeyboardButton(
-                        "🔒 ᴄʟᴏsᴇ", callback_data='close')
-                ])
+                # Skip audio-only formats for auto-selection
+                format_note = fmt.get("format_note") or fmt.get("format") or ""
+                if "audio only" in format_note.lower():
+                    continue
+                # Select format with best quality (largest size but under 2GB)
+                if size > best_size and size < 2147483648:  # 2GB limit
+                    best_size = size
+                    best_format = fmt
+
+        # If no suitable format found, use the default
+        if not best_format and "formats" in response_json and len(response_json["formats"]) > 0:
+            # Find first non-audio format
+            for fmt in response_json["formats"]:
+                format_note = fmt.get("format_note") or fmt.get("format") or ""
+                if "audio only" not in format_note.lower():
+                    best_format = fmt
+                    break
+            if not best_format:
+                best_format = response_json["formats"][-1]  # Use last format as fallback
+
+        if best_format:
+            format_id = best_format.get("format_id")
+            format_ext = best_format.get("ext", "mp4")
         else:
-            format_id = response_json["format_id"]
-            format_ext = response_json["ext"]
-            cb_string_file = "{}|{}|{}|{}".format(
-                "file", format_id, format_ext, randem)
-            cb_string_video = "{}|{}|{}|{}".format(
-                "video", format_id, format_ext, randem)
-            inline_keyboard.append([
-                InlineKeyboardButton(
-                    "📁 Document",
-                    callback_data=(cb_string_video).encode("UTF-8")
-                )
-            ])
-        reply_markup = InlineKeyboardMarkup(inline_keyboard)
-        await chk.delete()
-        await bot.send_message(
+            format_id = response_json.get("format_id", "best")
+            format_ext = response_json.get("ext", "mp4")
+
+        # Determine send type based on user settings
+        # upload_as_doc=True means upload as VIDEO (reply_video)
+        # upload_as_doc=False means upload as DOCUMENT (reply_document)
+        if upload_as_doc:
+            tg_send_type = "video"
+        else:
+            tg_send_type = "file"
+
+        # Create callback data and trigger download directly
+        cb_data = f"{tg_send_type}|{format_id}|{format_ext}|{randem}"
+
+        # Send a new message for download progress
+        from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        import time
+        cancel_id = f"{update.from_user.id}_{int(time.time())}"
+        cancel_markup = InlineKeyboardMarkup([
+            [InlineKeyboardButton("⛔ Cancel", callback_data=f"cancel_ytdl_{cancel_id}")]
+        ])
+
+        title = response_json.get('title', 'Unknown')
+        progress_msg = await bot.send_message(
             chat_id=update.chat.id,
-            text=Translation.FORMAT_SELECTION.format(Thumbnail) + "\n" + Translation.SET_CUSTOM_USERNAME_PASSWORD,
-            reply_markup=reply_markup,
-            disable_web_page_preview=True,
-            reply_to_message_id=update.id
+            text=f"📥 <b>Starting Download...</b>\n\n<b>Title:</b> <code>{title}</code>",
+            reply_markup=cancel_markup,
+            reply_to_message_id=update.id,
+            parse_mode=enums.ParseMode.HTML
         )
+
+        # Create a mock update object for the callback
+        class MockMessage:
+            def __init__(self, msg, chat_id, msg_id):
+                self.message_id = msg_id
+                self.chat = type('obj', (object,), {'id': chat_id})()
+                self._msg = msg
+
+            async def edit_caption(self, **kwargs):
+                await self._msg.edit_text(**kwargs)
+
+            async def reply_document(self, **kwargs):
+                return await self._msg.reply_document(**kwargs)
+
+            async def reply_video(self, **kwargs):
+                return await self._msg.reply_video(**kwargs)
+
+            async def reply_audio(self, **kwargs):
+                return await self._msg.reply_audio(**kwargs)
+
+            async def reply_video_note(self, **kwargs):
+                return await self._msg.reply_video_note(**kwargs)
+
+        class MockCallback:
+            def __init__(self, data, message, from_user, reply_to_msg):
+                self.data = data
+                self.message = message
+                self.from_user = from_user
+                self.reply_to_message = reply_to_msg
+
+        mock_msg = MockMessage(progress_msg, update.chat.id, progress_msg.id)
+        mock_update = MockCallback(cb_data, mock_msg, update.from_user, update)
+
+        # Import and call the youtube_dl callback directly
+        from plugins.button import youtube_dl_call_back
+        await youtube_dl_call_back(bot, mock_update)
+
     else:
-        #fallback for nonnumeric port a.k.a seedbox.io - direct download links
+        # Fallback for non-yt-dlp links (direct download links)
         # Get the real filename from the URL
         detected_filename = get_filename_from_url_sync(url)
 
-        inline_keyboard = []
-        cb_string_file = "{}={}={}".format(
-            "file", "LFO", "NONE")
-        cb_string_video = "{}={}={}".format(
-            "video", "OFL", "ENON")
-        inline_keyboard.append([
-            InlineKeyboardButton(
-                "📁 ᴍᴇᴅɪᴀ",
-                callback_data=(cb_string_video).encode("UTF-8")
-            )
+        await chk.delete()
+
+        # Get user's upload preference from settings
+        upload_as_doc = await db.get_upload_as_doc(update.from_user.id)
+
+        # Determine send type based on user settings
+        # upload_as_doc=True means upload as VIDEO (reply_video)
+        # upload_as_doc=False means upload as DOCUMENT (reply_document)
+        if upload_as_doc:
+            tg_send_type = "video"
+            youtube_dl_format = "OFL"
+            youtube_dl_ext = "ENON"
+        else:
+            tg_send_type = "file"
+            youtube_dl_format = "LFO"
+            youtube_dl_ext = "NONE"
+
+        # Create callback data for direct download
+        cb_data = f"{tg_send_type}={youtube_dl_format}={youtube_dl_ext}"
+
+        # Send a new message for download progress
+        from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        import time
+        cancel_id = f"{update.from_user.id}_{int(time.time())}"
+        cancel_markup = InlineKeyboardMarkup([
+            [InlineKeyboardButton("⛔ Cancel", callback_data=f"cancel_dl_{cancel_id}")]
         ])
-        reply_markup = InlineKeyboardMarkup(inline_keyboard)
-        await chk.delete(True)
 
-        # Show the detected filename in the message
-        message_text = f"<b>Sᴇʟᴇᴄᴛ Yᴏᴜʀ Fᴏʀᴍᴀᴛ 👇</b>\n\n"
-        message_text += f"<b>📁 Fɪʟᴇ Nᴀᴍᴇ:</b> <code>{detected_filename}</code>\n\n"
-        message_text += Translation.SET_CUSTOM_USERNAME_PASSWORD
-
-        await bot.send_message(
+        progress_msg = await bot.send_message(
             chat_id=update.chat.id,
-            text=message_text,
-            reply_markup=reply_markup,
-            disable_web_page_preview=True,
-            reply_to_message_id=update.id
+            text=f"📥 <b>Starting Download...</b>\n\n<b>File:</b> <code>{detected_filename}</code>",
+            reply_markup=cancel_markup,
+            reply_to_message_id=update.id,
+            parse_mode=enums.ParseMode.HTML
         )
+
+        # Create a mock update object for the callback
+        class MockMessage:
+            def __init__(self, msg, chat_id, msg_id):
+                self.message_id = msg_id
+                self.chat = type('obj', (object,), {'id': chat_id})()
+                self._msg = msg
+
+            async def edit_caption(self, **kwargs):
+                await self._msg.edit_text(**kwargs)
+
+            async def reply_document(self, **kwargs):
+                return await self._msg.reply_document(**kwargs)
+
+            async def reply_video(self, **kwargs):
+                return await self._msg.reply_video(**kwargs)
+
+            async def reply_audio(self, **kwargs):
+                return await self._msg.reply_audio(**kwargs)
+
+            async def reply_video_note(self, **kwargs):
+                return await self._msg.reply_video_note(**kwargs)
+
+        class MockCallback:
+            def __init__(self, data, message, from_user, reply_to_msg):
+                self.data = data
+                self.message = message
+                self.from_user = from_user
+                self.reply_to_message = reply_to_msg
+
+        mock_msg = MockMessage(progress_msg, update.chat.id, progress_msg.id)
+        mock_update = MockCallback(cb_data, mock_msg, update.from_user, update)
+
+        # Import and call the ddl callback directly
+        from plugins.dl_button import ddl_call_back
+        await ddl_call_back(bot, mock_update)
