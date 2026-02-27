@@ -3,19 +3,9 @@ import math
 import time
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from plugins.script import Translation
-from pyrogram import enums
+from pyrogram import enums 
 
 
-# Global dictionary to track unzip progress
-unzip_progress = {}
-
-
-def create_progress_bar(percentage):
-    """Create a visual progress bar"""
-    return "┏━━━✦[{0}{1}]✦━━━".format(
-        ''.join(["▣" for i in range(math.floor(percentage / 10))]),
-        ''.join(["▢" for i in range(10 - math.floor(percentage / 10))])
-    )
 
 
 async def progress_for_pyrogram(current, total, ud_type, message, start):
@@ -31,7 +21,10 @@ async def progress_for_pyrogram(current, total, ud_type, message, start):
         elapsed_time = TimeFormatter(milliseconds=elapsed_time)
         estimated_total_time = TimeFormatter(milliseconds=estimated_total_time)
 
-        progress = create_progress_bar(percentage)
+        progress = "┏━━━✦[{0}{1}]✦━━━".format(
+            ''.join(["▣" for i in range(math.floor(percentage / 10))]),
+            ''.join(["▢" for i in range(10 - math.floor(percentage / 10))])
+        )
 
         tmp = progress + Translation.PROGRESS.format(
             round(percentage, 2),
@@ -49,7 +42,7 @@ async def progress_for_pyrogram(current, total, ud_type, message, start):
                 parse_mode=enums.ParseMode.MARKDOWN,
                 reply_markup=InlineKeyboardMarkup(
                     [
-                        [
+                        [ 
                         InlineKeyboardButton('⛔ Cancel', callback_data=f"cancel_download+{id}")
                        ]
                    ]
@@ -57,72 +50,6 @@ async def progress_for_pyrogram(current, total, ud_type, message, start):
             )
         except:
             pass
-
-
-async def progress_for_download(current, total, message, start, file_name, cancel_id):
-    """Display download progress with visual progress bar using edit_caption"""
-    now = time.time()
-    diff = now - start
-
-    if round(diff % 5.00) == 0 or current == total:
-        percentage = current * 100 / total if total > 0 else 0
-        speed = current / diff if diff > 0 else 0
-        elapsed_time = round(diff) * 1000
-        time_to_completion = round((total - current) / speed) * 1000 if speed > 0 else 0
-        estimated_total_time = elapsed_time + time_to_completion
-
-        elapsed_time = TimeFormatter(milliseconds=elapsed_time)
-        estimated_total_time = TimeFormatter(milliseconds=estimated_total_time)
-
-        progress = create_progress_bar(percentage)
-
-        progress_text = progress + Translation.PROGRESS.format(
-            round(percentage, 2),
-            humanbytes(current),
-            humanbytes(total),
-            humanbytes(speed),
-            estimated_total_time if estimated_total_time != '' else "0 s"
-        )
-
-        try:
-            cancel_markup = InlineKeyboardMarkup([
-                [InlineKeyboardButton("⛔ Cancel", callback_data=f"cancel_dl_{cancel_id}")]
-            ])
-
-            await message.edit_caption(
-                caption=f"📥 **Downloading...**\n\n`{file_name}`\n{progress_text}",
-                reply_markup=cancel_markup,
-                parse_mode=enums.ParseMode.MARKDOWN
-            )
-        except Exception:
-            pass
-
-
-async def progress_for_unzip(current, total, message, file_name, extracted_files_count, total_files):
-    """Display unzip extraction progress with visual progress bar"""
-    percentage = current * 100 / total if total > 0 else 0
-
-    progress = create_progress_bar(percentage)
-
-    progress_text = progress + Translation.PROGRESS.format(
-        round(percentage, 2),
-        humanbytes(current),
-        humanbytes(total),
-        "N/A",
-        "Calculating..."
-    )
-
-    try:
-        await message.edit_caption(
-            caption=f"📦 **Extracting ZIP...**\n\n"
-                    f"`{file_name}`\n\n"
-                    f"📁 Files: {extracted_files_count}/{total_files}\n"
-                    f"{progress_text}",
-            reply_markup=None,
-            parse_mode=enums.ParseMode.MARKDOWN
-        )
-    except Exception:
-        pass
 
 
 def humanbytes(size):
@@ -142,7 +69,7 @@ def humanbytes(size):
 def TimeFormatter(milliseconds: int) -> str:
     seconds, milliseconds = divmod(int(milliseconds), 1000)
     minutes, seconds = divmod(seconds, 60)
-    hours, minutes = divmod(hours, 60)
+    hours, minutes = divmod(minutes, 60)
     days, hours = divmod(hours, 24)
     tmp = ((str(days) + "d, ") if days else "") + \
           ((str(hours) + "h, ") if hours else "") + \
