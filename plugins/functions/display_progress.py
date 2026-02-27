@@ -59,8 +59,8 @@ async def progress_for_pyrogram(current, total, ud_type, message, start):
             pass
 
 
-async def progress_for_download(current, total, message, start, file_name, cancel_id, bot, chat_id, message_id):
-    """Display download progress with visual progress bar"""
+async def progress_for_download(current, total, message, start, file_name, cancel_id):
+    """Display download progress with visual progress bar using edit_caption"""
     now = time.time()
     diff = now - start
 
@@ -89,10 +89,8 @@ async def progress_for_download(current, total, message, start, file_name, cance
                 [InlineKeyboardButton("⛔ Cancel", callback_data=f"cancel_dl_{cancel_id}")]
             ])
 
-            await bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=message_id,
-                text=f"📥 **Downloading...**\n\n`{file_name}`\n{progress_text}",
+            await message.edit_caption(
+                caption=f"📥 **Downloading...**\n\n`{file_name}`\n{progress_text}",
                 reply_markup=cancel_markup,
                 parse_mode=enums.ParseMode.MARKDOWN
             )
