@@ -3,12 +3,13 @@ import math
 import time
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from plugins.script import Translation
-from pyrogram import enums 
+from pyrogram import enums
+
+# Global dictionary to track active uploads for cancellation
+active_uploads = {}
 
 
-
-
-async def progress_for_pyrogram(current, total, ud_type, message, start):
+async def progress_for_pyrogram(current, total, ud_type, message, start, cancel_id=None):
     now = time.time()
     diff = now - start
     if round(diff % 10.00) == 0 or current == total:
@@ -33,20 +34,26 @@ async def progress_for_pyrogram(current, total, ud_type, message, start):
             humanbytes(speed),
             estimated_total_time if estimated_total_time != '' else "0 s"
         )
+
+        # Build reply markup with cancel button if cancel_id is provided
+        reply_markup = None
+        if cancel_id and cancel_id in active_uploads:
+            reply_markup = InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton('⛔ Cancel', callback_data=f"cancel_ul_{cancel_id}")
+                    ]
+                ]
+            )
+
         try:
             await message.edit(
-              text= Translation.PROGRES.format(
-              ud_type,
-              tmp
+                text=Translation.PROGRES.format(
+                    ud_type,
+                    tmp
                 ),
                 parse_mode=enums.ParseMode.MARKDOWN,
-                reply_markup=InlineKeyboardMarkup(
-                    [
-                        [ 
-                        InlineKeyboardButton('⛔ Cancel', callback_data=f"cancel_download+{id}")
-                       ]
-                   ]
-                 )
+                reply_markup=reply_markup
             )
         except:
             pass
