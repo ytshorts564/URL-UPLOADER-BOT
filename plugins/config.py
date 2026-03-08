@@ -46,7 +46,7 @@ class Config(object):
     UPDATES_CHANNEL = os.environ.get("UPDATES_CHANNEL", "-1002438300146")
 
     TG_MIN_FILE_SIZE = 2194304000
-    BOT_USERNAME = os.environ.get("BOT_USERNAME", "NsysshsfssgBot")
+    BOT_USERNAME = os.environ.get("BOT_USERNAME", "@LinkToFileBot_RoBot")
     ADL_BOT_RQ = {}
 
     # Set False off else True
